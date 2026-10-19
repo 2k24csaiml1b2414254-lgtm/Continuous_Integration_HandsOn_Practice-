@@ -1,0 +1,316 @@
+CONTINUOUS INTEGRATION (CI) — REVISION NOTES
+=============================================
+
+1. What is CI?
+--------------
+CI stands for Continuous Integration.
+
+It is a software development practice in which developers frequently push code changes to a shared repository, and an automated pipeline checks the changes.
+
+Typical CI tasks:
+- Get the latest repository code
+- Set up the required programming language/runtime
+- Install dependencies
+- Run automated tests
+- Report success or failure
+
+Main goal: detect bugs early and make sure new code does not break existing functionality.
+
+2. CI vs CD
+----------
+CI (Continuous Integration):
+- Automatically builds/checks code and runs tests after changes.
+- Helps catch errors early.
+
+CD can mean:
+- Continuous Delivery: software is kept ready to release; release may require approval.
+- Continuous Deployment: every change that passes the pipeline can be deployed automatically.
+
+Simple flow:
+Developer -> git push -> CI workflow -> tests -> success/failure
+A larger CI/CD pipeline may continue to build an artifact and deploy it.
+
+3. What is GitHub Actions?
+--------------------------
+GitHub Actions is GitHub's automation platform. It can run workflows for events such as:
+- push
+- pull_request
+- schedule
+- manual workflow_dispatch
+
+Important terms:
+- Workflow: the complete automation definition, stored as a YAML file.
+- Event/trigger: what starts the workflow, such as a push.
+- Job: a group of steps that runs on a runner.
+- Runner: the machine that executes the job.
+- Step: one action or shell command inside a job.
+- Action: a reusable unit of automation, often referenced with `uses:`.
+- Logs: output that helps diagnose what happened.
+
+4. Where is the workflow file?
+------------------------------
+The file must be inside:
+.github/workflows/ci.yaml
+
+`.yaml` and `.yml` are both valid extensions.
+
+5. Example Python CI workflow
+-----------------------------
+Save this as `.github/workflows/ci.yaml`:
+
+name: CI workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest
+
+Notes:
+- Change Python version to the version your project supports.
+- If you do not have `requirements.txt`, install the required packages directly, e.g. `pip install pytest streamlit`.
+- If your test files are in a specific folder, use a command such as `pytest tests/`.
+- The workflow triggers on pushes to `main` and pull requests targeting `main`.
+- YAML indentation matters. Use consistent spaces; do not use tabs.
+- `runs-on` needs a hyphen.
+- `python-version` needs a hyphen.
+- `name` must be spelled correctly.
+
+6. Understanding the YAML
+-------------------------
+`name: CI workflow`
+  The workflow's display name.
+
+`on:`
+  Defines which events trigger the workflow.
+
+`push:`
+  Runs when commits are pushed to the selected branch.
+
+`pull_request:`
+  Runs when a pull request targets the selected branch.
+
+`jobs:`
+  Defines the jobs in the workflow.
+
+`test:`
+  The job ID. It can be named something else.
+
+`runs-on: ubuntu-latest`
+  Requests a GitHub-hosted Ubuntu runner.
+
+`steps:`
+  Ordered list of tasks for the job.
+
+`uses: actions/checkout@v4`
+  Checks out the repository so commands can access its code.
+
+`uses: actions/setup-python@v5`
+  Sets up the requested Python version.
+
+`with:`
+  Supplies configuration inputs to an action.
+
+`run:`
+  Executes shell commands on the runner.
+
+7. What is pytest?
+------------------
+`pytest` is a Python testing framework.
+
+Common commands:
+- `pytest`                  Run tests discovered in the current directory.
+- `pytest -v`               Run tests with verbose output.
+- `pytest test_file.py`     Run tests in one file.
+- `pytest tests/`           Run tests in a folder.
+- `pytest -q`               Run with less output.
+- `pytest --collect-only`   Show which tests pytest discovers without running them.
+
+Common test-file names include:
+- `test_something.py`
+- `something_test.py`
+
+Example:
+def add(a, b):
+    return a + b
+
+def test_add():
+    assert add(2, 3) == 5
+
+Run locally before pushing:
+python -m pytest -v
+
+8. Testing expected exceptions
+------------------------------
+Use the exception class without quotes:
+
+Correct:
+with pytest.raises(TypeError):
+    some_function("invalid input")
+
+Incorrect:
+with pytest.raises("TypeError"):
+    some_function("invalid input")
+
+Why? `pytest.raises()` expects an exception class (or supported exception type), not a string.
+
+9. How to run the CI workflow
+-----------------------------
+From your local repository:
+
+git status
+git add .
+git commit -m "Add CI workflow"
+git push origin main
+
+When the push reaches GitHub:
+1. GitHub detects the push event.
+2. The workflow is queued.
+3. GitHub assigns a runner.
+4. The runner executes each step.
+5. GitHub shows Success or Failure.
+
+A pull request targeting `main` can also trigger the workflow because of the `pull_request` configuration.
+
+10. GitHub Actions statuses
+---------------------------
+- Queued: waiting for a runner/job slot.
+- In progress: the workflow is executing.
+- Success: all required steps completed successfully.
+- Failure: a step or test failed.
+- Cancelled: the run was cancelled.
+- Skipped: a job/step did not run due to its conditions or dependencies.
+
+Important:
+A job can spend a long time queued even if its actual execution takes only seconds. A queued job does not automatically mean the YAML or tests are broken.
+
+For a GitHub-hosted runner, possible queue delays include temporary service issues, runner availability/capacity, or concurrency limits. Do not assume a specific cause without checking current status and run details.
+
+11. Troubleshooting checklist
+-----------------------------
+A. Workflow does not trigger:
+- Check the file path: `.github/workflows/ci.yaml`
+- Check the branch name (`main` vs another branch).
+- Check the `on:` event configuration.
+- Confirm that the file was committed and pushed.
+
+B. Workflow fails immediately:
+- Open Actions -> select the run -> expand the failed step.
+- Read the first meaningful error message.
+- Check YAML spelling and indentation.
+- Confirm the Python version and dependency installation commands.
+
+C. `ModuleNotFoundError`:
+- Add the missing package to `requirements.txt` or the install command.
+- Make sure the workflow installs dependencies before running tests.
+
+D. `pytest` says no tests were found:
+- Check test file naming.
+- Check that test functions start with `test_`.
+- Check that test files are in the current directory or the specified test folder.
+
+E. A test fails:
+- Run `python -m pytest -v` locally.
+- Read the assertion/traceback.
+- Fix the test or application code, then commit and push.
+
+F. Job remains queued:
+- Check the run status and GitHub Status page.
+- Wait briefly if GitHub is reporting an incident.
+- Avoid repeatedly pushing commits or creating many runs.
+- If it remains stuck after service status is normal, inspect the job details and available runner/concurrency information.
+
+12. Useful GitHub CLI commands
+------------------------------
+List recent workflow runs:
+gh run list --limit 10
+
+List recent runs with selected fields:
+gh run list --limit 5 --json databaseId,status,conclusion,displayTitle,createdAt
+
+View a particular run:
+gh run view RUN_ID
+
+View structured status:
+gh run view RUN_ID --json status,conclusion,createdAt,updatedAt
+
+View a particular job:
+gh run view --job=JOB_ID
+
+Watch a run until it completes:
+gh run watch RUN_ID
+
+Cancel an active run (only if you really want to cancel it):
+gh run cancel RUN_ID
+
+Notes:
+- Replace RUN_ID and JOB_ID with actual IDs.
+- A completed run cannot be cancelled.
+- Deleting run history is usually unnecessary; it does not reset the run numbering to #1.
+- GitHub CLI must be installed and authenticated (`gh auth login`).
+
+13. How to read a successful run
+-------------------------------
+Look for a green check mark and a successful conclusion.
+Expand the steps to inspect them:
+- Set up job
+- Checkout code
+- Set up Python
+- Install dependencies
+- Run tests
+- Complete job
+
+A successful `Run tests` step means the command exited successfully. To confirm how many tests passed, expand the step logs and read pytest's summary, e.g. `4 passed`.
+
+14. Best practices
+------------------
+- Keep tests runnable locally and in CI.
+- Put project dependencies in `requirements.txt` for repeatability.
+- Use clear workflow and step names.
+- Keep secrets out of source code; use GitHub Actions secrets for credentials.
+- Test changes on a branch and use pull requests where appropriate.
+- Pin action versions to stable release tags or commit SHAs according to your security requirements.
+- Avoid installing unrelated packages.
+- Do not expose tokens or credentials in logs.
+- Use the same supported Python version locally and in CI when practical.
+
+15. Quick revision
+------------------
+CI = automatically check code changes.
+GitHub Actions = automation platform.
+Workflow = YAML file defining automation.
+Trigger = event that starts a workflow.
+Job = group of steps.
+Runner = machine that executes a job.
+Step = command or reusable action.
+pytest = Python test framework.
+Queued = waiting to start.
+In progress = executing.
+Success = completed without errors.
+Failure = one or more required steps failed.
+
+Remember the basic flow:
+git push -> workflow trigger -> runner -> install dependencies -> pytest -> result
