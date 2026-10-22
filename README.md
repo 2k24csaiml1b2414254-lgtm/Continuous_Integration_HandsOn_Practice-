@@ -110,14 +110,6 @@ Through this project, I am practicing:
 - Triggering automated checks on code changes
 - Reviewing test results through GitHub Actions
 
-## 🔮 Future Improvements
-
-- Add a `requirements.txt` file
-- Improve test coverage and edge-case handling
-- Add a CI status badge to the README
-- Add code quality checks such as Ruff
-- Deploy the Streamlit application and add a live demo link
-
 ## 📄 License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
